@@ -1,27 +1,26 @@
-# 从 PCL-N 主仓库触发 Patch 生成
+# 从 PCL-N 主仓库生成 Patch（当前方案）
 
-在 `PCL-F/.github/workflows/release-stable_publish.yml`（及 beta）的 `publish-assets` 成功后追加：
+**主路径已在 PCL-N 内完成，无需再靠 repository_dispatch 才能出 Patch。**
 
-```yaml
-  dispatch-patches:
-    needs: [publish-assets]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Notify PCL-N-Patches
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.PATCHES_REPO_TOKEN }}
-          repository: MuXue1230-owo/PCL-N-Patches
-          event-type: pcln-release
-          client-payload: >-
-            {
-              "target_tag": "${{ github.event.release.tag_name || inputs.tag_name }}",
-              "source_repo": "${{ github.repository }}"
-            }
-```
+## 每次发版自动跑
 
-在 GitHub → Settings → Secrets 添加 `PATCHES_REPO_TOKEN`（classic PAT 或 fine-grained，scope 含 `PCL-N-Patches` 的 contents write）。
+| 工作流 | 时机 |
+|--------|------|
+| `release-stable_publish.yml` | 正式版 assets 上传成功后 |
+| `release-beta_publish.yml` | 预发布 assets 上传成功后 |
+| 调用 | `generate-launcher-patches.yml` |
 
-也可在 Actions 页对 **Generate version patches** 手动填写 `target_tag` 运行。
+脚本位于主仓：`tools/pcl-n-patches/`。
+
+行为：
+
+1. 等待本仓库 Release 上已有资产  
+2. 对 **每一个历史版本 → 当前 tag** 生成 HDiffPatch（按 RID/变体）  
+3. 把 `index.json` + patches **挂回同一个启动器 Release**  
+4. 若配置了 `PATCHES_REPO_TOKEN`，再镜像到专用 `PCL-N-Patches` 仓  
+
+手动发版跳过 Patch：workflow_dispatch 勾选 `skip_patches`。
+
+## 仅维护专用 Patch 仓时
+
+仍可在本仓库 Actions 手动跑 **Generate version patches**，或接收旧的 `repository_dispatch`（`pcln-release`）。

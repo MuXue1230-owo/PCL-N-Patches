@@ -91,23 +91,23 @@ python scripts/apply_patch.py `
   --out path\to\PCL.Desktop.new.exe
 ```
 
-## GitHub 仓库建议设置
+## 与启动器发版 GA（主路径）
 
-1. 在 GitHub 新建空仓库：`MuXue1230-owo/PCL-N-Patches`（或同名组织）
-2. 本目录推送为初始提交：
+**每次 PCL-N 发布新版本，主仓库 GitHub Actions 会自动生成 Patch**（脚本在主仓 `tools/pcl-n-patches/`）：
 
-```powershell
-cd D:\PCL-F\PCL-N-Patches
-git init
-git add .
-git commit -m "Initial PCL-N-Patches pipeline"
-git branch -M main
-git remote add origin https://github.com/MuXue1230-owo/PCL-N-Patches.git
-git push -u origin main
-```
+1. `release-stable_publish.yml` / `release-beta_publish.yml` 上传完整包  
+2. Job **`generate-patches`** → `generate-launcher-patches.yml`  
+3. 对每一个历史版本 → 当前 tag 生成 HDiffPatch  
+4. 将 `index.json` + patches **挂到同一启动器 Release**  
+5. （可选）配置 `PATCHES_REPO_TOKEN` 后镜像到本专用仓  
 
-3. 在 **PCL-N** 主仓库 Release 工作流末尾加一步 `repository_dispatch` 触发本仓库（见 `docs/CLIENT.md`）
-4. Secrets：`GITHUB_TOKEN` 默认可用；若拉取私有产物另配 token
+手动发版若要跳过：workflow_dispatch 勾选 `skip_patches`。
+
+## 专用 Patch 仓（可选镜像）
+
+1. 新建 `MuXue1230-owo/PCL-N-Patches` 并推送本目录  
+2. 主仓 Secret：`PATCHES_REPO_TOKEN`  
+3. 主仓 Variable（可选）：`PATCHES_REPO`
 
 ## 许可证
 
