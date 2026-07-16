@@ -1,0 +1,104 @@
+name: Generate version patches
+
+on:
+  # PCL-N (or other) can fire: event-type pcln-release, client_payload.target_tag
+  repository_dispatch:
+    types: [pcln-release]
+  workflow_dispatch:
+    inputs:
+      target_tag:
+        description: PCL-N release tag to patch TO (e.g. v1.2.3)
+        required: true
+        type: string
+      source_repo:
+        description: Source full releases repo
+        required: false
+        default: MuXue1230-owo/PCL-N
+        type: string
+      max_from_versions:
+        description: Max historical versions to diff against
+        required: false
+        default: "50"
+        type: string
+      include_prerelease_history:
+        description: Include prereleases in history when target is stable
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SOURCE_REPO: ${{ github.event.client_payload.source_repo || inputs.source_repo || 'MuXue1230-owo/PCL-N' }}
+      TARGET_TAG: ${{ github.event.client_payload.target_tag || inputs.target_tag }}
+      MAX_FROM: ${{ inputs.max_from_versions || '50' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate target tag
+        run: |
+          if [[ -z "${TARGET_TAG}" ]]; then
+            echo "target_tag is required"
+            exit 1
+          fi
+          echo "Generating patches → ${TARGET_TAG} from ${SOURCE_REPO}"
+
+      - name: Bootstrap HDiffPatch
+        run: python scripts/bootstrap_hdiffpatch.py
+
+      - name: Generate all-from-history patches
+        run: |
+          EXTRA=()
+          if [[ "${{ inputs.include_prerelease_history || false }}" == "true" ]]; then
+            EXTRA+=(--include-prerelease-history)
+          fi
+          python scripts/generate_patches.py \
+            --source-repo "${SOURCE_REPO}" \
+            --target-tag "${TARGET_TAG}" \
+            --out-dir "artifacts/${TARGET_TAG}" \
+            --max-from-versions "${MAX_FROM}" \
+            "${EXTRA[@]}"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: patches-${{ env.TARGET_TAG }}
+          path: artifacts/${{ env.TARGET_TAG }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create or update GitHub Release for patches
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: patches-${{ env.TARGET_TAG }}
+          name: Patches to ${{ env.TARGET_TAG }}
+          body: |
+            Binary HDiffPatch set for PCL N **${{ env.TARGET_TAG }}**.
+
+            Each prior version (up to ${{ env.MAX_FROM }}) × each RID/variant has a `from → to` patch when an asset pair exists.
+
+            - Source releases: `${{ env.SOURCE_REPO }}`
+            - Index: `index.json` in this release
+            - Algorithm: HDiffPatch (`hdiffz` / `hpatchz`)
+
+            Clients should prefer a matching patch when `size < full asset`; otherwise download the full build from the source repo.
+          files: |
+            artifacts/${{ env.TARGET_TAG }}/index.json
+            artifacts/${{ env.TARGET_TAG }}/manifests/**
+            artifacts/${{ env.TARGET_TAG }}/patches/**
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

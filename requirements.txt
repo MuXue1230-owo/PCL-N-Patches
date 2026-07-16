@@ -1,0 +1,3 @@
+# Patch pipeline (stdlib-heavy; these help hashing/progress only if extended later)
+# HDiffPatch is a native binary, not a pip package.
+# Optional: requests is not required — urllib is used.

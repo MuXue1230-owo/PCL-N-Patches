@@ -1,0 +1,14 @@
+# Large generated outputs — publish via GitHub Releases only
+artifacts/
+.cache/
+tools/hdiffpatch/
+*.hdiff
+*.zip
+*.tar.gz
+__pycache__/
+*.pyc
+.venv/
+venv/
+.idea/
+.vscode/
+*.log
