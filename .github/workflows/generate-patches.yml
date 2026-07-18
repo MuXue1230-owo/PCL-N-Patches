@@ -23,7 +23,7 @@ on:
       include_prerelease_history:
         description: Include prereleases in history when target is stable
         required: false
-        default: false
+        default: true
         type: boolean
 
 permissions:
@@ -62,7 +62,7 @@ jobs:
       - name: Generate all-from-history patches
         run: |
           EXTRA=()
-          if [[ "${{ inputs.include_prerelease_history || false }}" == "true" ]]; then
+          if [[ "${{ github.event_name == 'repository_dispatch' || inputs.include_prerelease_history }}" == "true" ]]; then
             EXTRA+=(--include-prerelease-history)
           fi
           python scripts/generate_patches.py \
